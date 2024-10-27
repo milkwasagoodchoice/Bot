@@ -1,102 +1,309 @@
 import requests
-from bs4 import BeautifulSoup
 import schedule
-import time
+import datetime
+import json
 import asyncio
 from telegram import Bot
-from telegram.ext import ApplicationBuilder
-# Telegram bot setup
+import argparse
+import requests
+import schedule
+import time
+from datetime import datetime as dt
+
 TELEGRAM_TOKEN = '7713171054:AAF4sL1XxoU6yyMCZftuj870n5iQPGj-nxo'
 CHAT_ID = '109194797'
-bot = Bot(token=TELEGRAM_TOKEN)
 
-# List of websites to monitor
-WEBSITES = [
-    'https://www.extraloppan.is/',
-    'https://riteil.is/collections/vorur-i-riteil'
-]
-
-# Keywords to search on the websites
-KEYWORDS = ['Stone Island', 'Ganni']
-
-async def send_message(text):
-    await app.bot.send_message(chat_id=CHAT_ID, text=text)
-
-async def check_website(url):
+ #stone island
+def send_to_telegram(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        'chat_id': CHAT_ID,
+        'text': message,
+        'parse_mode': 'HTML'  # You can change this to 'Markdown' if needed
+    }
     try:
-        print(f"Checking website: {url}")  # Debugging statement
-        response = requests.get(url)
-        response.raise_for_status()
+        response = requests.post(url, json=payload)
+        response.raise_for_status()  # Raise an error for bad responses
+        print("Message sent to Telegram.")
+    except requests.RequestException as e:
+        print(f"Error sending message to Telegram: {e}")
 
-        soup = BeautifulSoup(response.text, 'html.parser')
-        page_text = soup.get_text().lower()
 
-        for keyword in KEYWORDS:
-            if keyword.lower() in page_text:
-                message = f"Keyword '{keyword}' found on {url}"
-                await send_message(message)
-                print(f"Notification sent for {url} with keyword '{keyword}'")
-                return
+# Function to get and send selected content from the API for a specific query
+def get_selected_content(query, store_id=5):
+    # URL for the API request based on the query
+    url = f"https://www.extraloppan.is/boerneloppen-theme/searches/search.json?page=1&query={query}&boerneloppen_theme_store_id={store_id}&boerneloppen_theme_status_id=&sort=name&direction=ASC&only_own_products=false&show_marked_inactive=false"
+
+    # Headers from the provided cURL command
+    headers = {
+        'accept': '*/*',
+        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'cookie': 'cookieSafe=%7B%22date%22%3A%222024-10-26%22%7D; _ga=GA1.2.1492334422.1729951084; _gid=GA1.2.591370508.1729951084; vmcms=471427930748ac3950065627e60cecb4; _ga_QGEHQDPWYD=GS1.2.1729983899.3.1.1729984222.0.0.0',
+        'priority': 'u=1, i',
+        'referer': 'https://www.extraloppan.is/leitaou-ao-voeru?boerneloppen_theme_store_id=5&query=',
+        'sec-ch-ua': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+        'x-requested-with': 'XMLHttpRequest'
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an error for bad responses
+        data = response.json()  # Parse the JSON response
+
+        # Check if the response contains products
+        if 'data' in data and isinstance(data['data'], list):
+            products = data['data']
+            formatted_message = f"Products Found for '{query}':\n"
+
+            # Loop through products and extract name, price, and stand
+            for product in products:
+                name = product.get('name', 'No Name')  # Default if name not found
+                price = product.get('price', 'No Price')  # Default if price not found
+                stand = product.get('stand', 'No Stand')  # Default if stand not found
+                formatted_message += f"- Name: {name}, Price: {price}, Stand: {stand}\n"
+
+            # Send the formatted content to the Telegram bot
+            send_to_telegram(formatted_message)
+        else:
+            send_to_telegram(f"No products found for '{query}'.")
 
     except requests.RequestException as e:
-        print(f"Error accessing {url}: {e}")
-    finally:
-        print(f"Finished checking: {url}")  # Debugging statement
+        print(f"Error fetching data for '{query}': {e}")
 
-async def check_websites():
-    for website in WEBSITES:
-        await check_website(website)
 
-def schedule_checks():
-    asyncio.run(check_websites())
+if __name__ == "__main__":
+    # List of queries to search
+    queries = ["stone island"]
+    for query in queries:
+        get_selected_content(query)
 
-# Schedule the task to run every 6 hours
-schedule.every(6).hours.do(schedule_checks)
+#ganni
+url = "https://www.extraloppan.is/boerneloppen-theme/searches/search.json?page=1&query=ganni&boerneloppen_theme_store_id=5&boerneloppen_theme_status_id=&sort=name&direction=ASC&only_own_products=false&show_marked_inactive=false"
 
-print("Starting website monitor...")
+# Headers from the provided cURL command
+headers = {
+    'accept': '*/*',
+    'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+    'cookie': 'cookieSafe=%7B%22date%22%3A%222024-10-26%22%7D; _ga=GA1.2.1492334422.1729951084; _gid=GA1.2.591370508.1729951084; vmcms=471427930748ac3950065627e60cecb4; _gat_UA-143241006-1=1; _ga_QGEHQDPWYD=GS1.2.1729983899.3.1.1729984222.0.0.0',
+    'priority': 'u=1, i',
+    'referer': 'https://www.extraloppan.is/leitaou-ao-voeru?boerneloppen_theme_store_id=5&query=',
+    'sec-ch-ua': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"macOS"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+    'x-requested-with': 'XMLHttpRequest'
+}
 
-# Keep the script running and execute scheduled tasks
+
+# Function to send a message to the Telegram bot
+def send_to_telegram(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        'chat_id': CHAT_ID,
+        'text': message,
+        'parse_mode': 'HTML'  # You can change this to 'Markdown' if needed
+    }
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()  # Raise an error for bad responses
+        print("Message sent to Telegram.")
+    except requests.RequestException as e:
+        print(f"Error sending message to Telegram: {e}")
+
+
+# Function to get and send selected content from the API
+def get_selected_content():
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an error for bad responses
+        data = response.json()  # Parse the JSON response
+
+        # Check if the response contains products
+        if 'data' in data and isinstance(data['data'], list):
+            products = data['data']
+            formatted_message = "Products Found:\n"
+
+            # Loop through products and extract name, price, and stand
+            for product in products:
+                name = product.get('name', 'No Name')  # Default if name not found
+                price = product.get('price', 'No Price')  # Default if price not found
+                stand = product.get('stand', 'No Stand')  # Default if stand not found
+                formatted_message += f"- Name: {name}, Price: {price}, Stand: {stand}\n"
+
+            # Send the formatted content to the Telegram bot
+            send_to_telegram(formatted_message)
+        else:
+            send_to_telegram("No products found in the response.")
+
+    except requests.RequestException as e:
+        print(f"Error fetching data: {e}")
+
+
+if __name__ == "__main__":
+    get_selected_content()
+
+#cp company
+
+def send_to_telegram(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        'chat_id': CHAT_ID,
+        'text': message,
+        'parse_mode': 'HTML'  # You can change this to 'Markdown' if needed
+    }
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()  # Raise an error for bad responses
+        print("Message sent to Telegram.")
+    except requests.RequestException as e:
+        print(f"Error sending message to Telegram: {e}")
+
+
+# Function to get and send selected content from the API for a specific query
+def get_selected_content(query, store_id=5):
+    # URL for the API request based on the query
+    url = f"https://www.extraloppan.is/boerneloppen-theme/searches/search.json?page=1&query={query}&boerneloppen_theme_store_id={store_id}&boerneloppen_theme_status_id=&sort=name&direction=ASC&only_own_products=false&show_marked_inactive=false"
+
+    # Headers from the provided cURL command
+    headers = {
+        'accept': '*/*',
+        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'cookie': 'cookieSafe=%7B%22date%22%3A%222024-10-26%22%7D; _ga=GA1.2.1492334422.1729951084; _gid=GA1.2.591370508.1729951084; vmcms=471427930748ac3950065627e60cecb4; _ga_QGEHQDPWYD=GS1.2.1729983899.3.1.1729984222.0.0.0',
+        'priority': 'u=1, i',
+        'referer': 'https://www.extraloppan.is/leitaou-ao-voeru?boerneloppen_theme_store_id=5&query=',
+        'sec-ch-ua': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+        'x-requested-with': 'XMLHttpRequest'
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an error for bad responses
+        data = response.json()  # Parse the JSON response
+
+        # Check if the response contains products
+        if 'data' in data and isinstance(data['data'], list):
+            products = data['data']
+            formatted_message = f"Products Found for '{query}':\n"
+
+            # Loop through products and extract name, price, and stand
+            for product in products:
+                name = product.get('name', 'No Name')  # Default if name not found
+                price = product.get('price', 'No Price')  # Default if price not found
+                stand = product.get('stand', 'No Stand')  # Default if stand not found
+                formatted_message += f"- Name: {name}, Price: {price}, Stand: {stand}\n"
+
+            # Send the formatted content to the Telegram bot
+            send_to_telegram(formatted_message)
+        else:
+            send_to_telegram(f"No products found for '{query}'.")
+
+    except requests.RequestException as e:
+        print(f"Error fetching data for '{query}': {e}")
+
+
+if __name__ == "__main__":
+    # List of queries to search
+    queries = ["cp company"]
+    for query in queries:
+        get_selected_content(query)
+
+#palace
+
+def send_to_telegram(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    payload = {
+        'chat_id': CHAT_ID,
+        'text': message,
+        'parse_mode': 'HTML'  # You can change this to 'Markdown' if needed
+    }
+    try:
+        response = requests.post(url, json=payload)
+        response.raise_for_status()  # Raise an error for bad responses
+        print("Message sent to Telegram.")
+    except requests.RequestException as e:
+        print(f"Error sending message to Telegram: {e}")
+
+
+# Function to get and send selected content from the API for a specific query
+def get_selected_content(query, store_id=5):
+    # URL for the API request based on the query
+    url = f"https://www.extraloppan.is/boerneloppen-theme/searches/search.json?page=1&query={query}&boerneloppen_theme_store_id={store_id}&boerneloppen_theme_status_id=&sort=name&direction=ASC&only_own_products=false&show_marked_inactive=false"
+
+    # Headers from the provided cURL command
+    headers = {
+        'accept': '*/*',
+        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'cookie': 'cookieSafe=%7B%22date%22%3A%222024-10-26%22%7D; _ga=GA1.2.1492334422.1729951084; _gid=GA1.2.591370508.1729951084; vmcms=471427930748ac3950065627e60cecb4; _ga_QGEHQDPWYD=GS1.2.1729983899.3.1.1729984222.0.0.0',
+        'priority': 'u=1, i',
+        'referer': 'https://www.extraloppan.is/leitaou-ao-voeru?boerneloppen_theme_store_id=5&query=',
+        'sec-ch-ua': '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+        'x-requested-with': 'XMLHttpRequest'
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Raise an error for bad responses
+        data = response.json()  # Parse the JSON response
+
+        # Check if the response contains products
+        if 'data' in data and isinstance(data['data'], list):
+            products = data['data']
+            formatted_message = f"Products Found for '{query}':\n"
+
+            # Loop through products and extract name, price, and stand
+            for product in products:
+                name = product.get('name', 'No Name')  # Default if name not found
+                price = product.get('price', 'No Price')  # Default if price not found
+                stand = product.get('stand', 'No Stand')  # Default if stand not found
+                formatted_message += f"- Name: {name}, Price: {price}, Stand: {stand}\n"
+
+            # Send the formatted content to the Telegram bot
+            send_to_telegram(formatted_message)
+        else:
+            send_to_telegram(f"No products found for '{query}'.")
+
+    except requests.RequestException as e:
+        print(f"Error fetching data for '{query}': {e}")
+
+
+if __name__ == "__main__":
+    # List of queries to search
+    queries = ["ganni", "stone island", "cp company", "palace"]
+    for query in queries:
+        get_selected_content(query)
+
+def job():
+    for query in queries:
+        get_selected_content(query)
+
+# Schedule the job every two hours between 11:00 and 18:00
+schedule.every(2).hours.at(":00").do(job)  # At 00 minutes
+schedule.every(2).hours.at(":30").do(job)  # At 30 minutes
+
+# Run the scheduler
 while True:
-    schedule.run_pending()
-    time.sleep(60)
-2. Common Issues
-Slow Network or Unresponsive Websites: If any of the websites you're checking are slow to respond or down, it may cause your script to hang. To avoid this, you can set a timeout for your requests:
-
-python
-Copy code
-response = requests.get(url, timeout=10)  # 10-second timeout
-Infinite Loop or Blocked Event Loop: Make sure that your event loop isn't being blocked. If the requests are synchronous (as they are in the example), the script will wait for each request to complete before moving to the next one. If you have many websites, consider using asynchronous requests with aiohttp.
-
-Check for Exceptions: The script might be running into an exception that you’re not catching. Ensure all potential errors are handled properly.
-
-Print Statements: Make sure to have print statements before and after significant actions (like checking a website) to trace where the script might be getting stuck.
-
-3. Example of Asynchronous Requests
-To further optimize and prevent blocking, you can use aiohttp for asynchronous HTTP requests. Here's an example of how you could modify your check_website function to use aiohttp:
-
-python
-Copy code
-import aiohttp
-import asyncio
-
-async def check_website(url):
-    async with aiohttp.ClientSession() as session:
-        try:
-            print(f"Checking website: {url}")  # Debugging statement
-            async with session.get(url, timeout=10) as response:
-                response.raise_for_status()
-                html = await response.text()
-                soup = BeautifulSoup(html, 'html.parser')
-                page_text = soup.get_text().lower()
-
-                for keyword in KEYWORDS:
-                    if keyword.lower() in page_text:
-                        message = f"Keyword '{keyword}' found on {url}"
-                        await send_message(message)
-                        print(f"Notification sent for {url} with keyword '{keyword}'")
-                        return
-
-        except Exception as e:
-            print(f"Error accessing {url}: {e}")
-        finally:
-            print(f"Finished checking: {url}")  # Debugging statement
+    current_time = dt.now()  # Use the alias for datetime
+    if 11 <= current_time.hour < 18:  # Check if current time is between 11 AM and 6 PM
+        schedule.run_pending()
+    time.sleep(60)  # Wait a minute before checking again
